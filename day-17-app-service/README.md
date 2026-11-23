@@ -191,37 +191,3 @@ curl -i https://webapp-day17-lab-73921-b5f3fhhwd7ane7bg.westus3-01.azurewebsites
 <p>Environment: Learning</p>
 <p>Hosted on Azure App Service</p>
 ```
-
-## 15. Skills Practiced
-
-- Azure App Service and App Service Plans
-- Linux-based Web App hosting
-- App Service pricing tiers
-- Application settings and environment variables
-- Connection strings
-- System-assigned Managed Identity
-- .NET application publishing
-- ZIP deployment using Azure CLI
-- Deployment history verification
-- Application configuration troubleshooting
-- HTTP response verification using curl
-
-## Lab Status
-
-**Completed:**
-- Web App creation
-- Application configuration
-- Connection string configuration
-- Managed Identity enablement
-- .NET application deployment
-- Live application verification
-
-**Remaining Day 17 topics:**
-- Deployment Center
-- Kudu and deployment diagnostics
-- Scaling and autoscaling
-- Deployment slots
-- Custom domains and HTTPS
-- Access restrictions and networking
-- Backup, monitoring and troubleshooting
-
