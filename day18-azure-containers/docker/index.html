@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure ACI - Custom NGINX</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f3f6fa;
+            text-align: center;
+            padding: 80px 20px;
+        }
+
+        .container {
+            background: white;
+            max-width: 650px;
+            margin: auto;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        h1 {
+            color: #0078d4;
+        }
+
+        p {
+            color: #444;
+            line-height: 1.7;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>NGINX is Running!</h1>
+        <p>Successfully deployed a custom Docker image to Azure Container Instances.</p>
+        <p><strong>Container Image:</strong> nginx-custom:v1</p>
+        <p><strong>Registry:</strong> Azure Container Registry</p>
+        <p><strong>Authentication:</strong> User Assigned Managed Identity</p>
+        <p><strong>Platform:</strong> Azure Container Instances</p>
+    </div>
+</body>
+</html>

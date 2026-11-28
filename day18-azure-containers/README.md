@@ -1,109 +1,246 @@
-# Day 18 – Azure Container Registry (ACR) and Azure Container Instances (ACI)
+# Day 18 – Azure Container Registry (ACR) & Azure Container Instances (ACI)
 
 ## Overview
 
-In this lab, I built a custom NGINX Docker image, pushed it to Azure Container Registry, and deployed it using Azure Container Instances.
+In this lab, I worked with Azure Container Registry and Azure Container Instances to understand how container images are stored, authenticated and deployed in Azure.
 
-Instead of using registry credentials, I configured a User Assigned Managed Identity to authenticate ACI with ACR.
+I created a custom NGINX Docker image locally, pushed it to a new Azure Container Registry, and deployed it using Azure Container Instances.
 
-The objective was to understand how Azure handles private container image authentication and deployment.
+I also reused a User Assigned Managed Identity to authenticate ACI with the private ACR without storing registry credentials.
 
 ## Architecture
 
 ```text
-My Mac
-  |
-  | Docker build
-  v
-nginx-custom:v1
-  |
-  | Docker push
-  v
-Azure Container Registry
-  |
-  | AcrPull permission
-  v
-User Assigned Managed Identity
-  |
-  | Authentication
-  v
-Azure Container Instance
-  |
-  v
-NGINX - HTTP Port 80
+                  My Mac
+                    |
+                    | Docker build
+                    v
+              nginx-custom:v1
+                    |
+                    | Docker push
+                    v
+          Azure Container Registry
+                    |
+                    | AcrPull permission
+                    |
+          User Assigned Managed
+                 Identity
+                    |
+                    | Authentication
+                    v
+         Azure Container Instances
+                    |
+                    v
+              NGINX Container
+                    |
+                    v
+              HTTP - Port 80
 ```
 
 ## Azure Resources
 
-| Resource | Name |
+| Resource | Configuration |
 |---|---|
 | Resource Group | rg-day18-containers |
-| Container Registry | Newly created ACR |
-| Container Image | nginx-custom:v1 |
+| Container Registry | New ACR |
+| Registry SKU | Basic |
+| Repository | nginx-custom |
+| Image Tag | v1 |
 | Managed Identity | id-day18-acr-pull |
 | ACI | aci-nginx-custom |
+| Operating System | Linux |
+| CPU | 1 |
+| Memory | 1.5 GB |
 | Container Port | 80 |
-| Registry SKU | Basic |
+| IP Address | Public |
 
-## What I implemented
+## Lab 1 – Azure Container Registry
 
-1. Created a new Azure Container Registry.
-2. Created a custom NGINX image using a Dockerfile.
-3. Built the image for Linux AMD64.
-4. Authenticated with Azure Container Registry.
-5. Tagged and pushed the image to ACR.
-6. Reused an existing User Assigned Managed Identity.
-7. Assigned the AcrPull role on the new ACR.
-8. Deployed the private image using Azure Container Instances.
-9. Verified the deployment through container logs and a browser.
-10. Practised the troubleshooting and cleanup commands.
+### 1. Create a new ACR
 
-## Important concepts learned
+Created a new Azure Container Registry using the Basic SKU.
 
-### Azure Container Registry
+### 2. Build the Docker image
 
-ACR is a private container registry used to store and manage container images.
+Built the custom NGINX image locally using Docker.
 
-### Azure Container Instances
+```bash
+docker build --platform linux/amd64 -t nginx-custom:v1 .
+```
 
-ACI allows me to run containers in Azure without managing virtual machines or Kubernetes clusters.
+### 3. Authenticate with ACR
 
-### Managed Identity
+```bash
+az acr login --name $ACR
+```
 
-Managed Identity provides an identity to Azure resources without requiring me to store usernames, passwords or registry credentials.
+### 4. Tag the image
 
-### AcrPull
+```bash
+docker tag nginx-custom:v1 \
+  $LOGIN_SERVER/nginx-custom:v1
+```
 
-The AcrPull role allows an identity to download container images from Azure Container Registry.
+### 5. Push the image
 
-An important point I learned: permissions assigned on one registry do not automatically apply to another registry.
+```bash
+docker push $LOGIN_SERVER/nginx-custom:v1
+```
 
-## Authentication flow
+### 6. Verify the image
 
-When ACI starts, it uses the configured User Assigned Managed Identity to authenticate with ACR.
+```bash
+az acr repository list --name $ACR -o table
+```
 
-ACR checks whether that identity has the required AcrPull permission.
+```bash
+az acr repository show-tags \
+  --name $ACR \
+  --repository nginx-custom \
+  -o table
+```
 
-If authorization succeeds, ACI can download the image and start the container.
+## Lab 2 – Azure Container Instances
 
-## Verification
+### 1. Managed Identity
 
-I verified that:
+Reused the existing User Assigned Managed Identity:
 
-- The image was available in ACR.
-- The ACI deployment completed successfully.
-- The container entered the Running state.
-- NGINX started successfully.
-- The application was accessible through its public FQDN over HTTP.
+`id-day18-acr-pull`
+
+### 2. Assign AcrPull permission
+
+Assigned the AcrPull role to the managed identity at the scope of the newly created ACR.
+
+This permission allows the identity to pull images from that registry.
+
+**Important:** Role assignments are scoped to Azure resources. Having AcrPull on an existing registry does not automatically grant access to a newly created registry.
+
+### 3. Deploy ACI
+
+Deployed the custom NGINX image using Azure Container Instances.
+
+Configuration:
+
+- Linux container
+- 1 vCPU
+- 1.5 GB memory
+- Public IP address
+- HTTP port 80
+- User Assigned Managed Identity
+- Private image from ACR
+
+### 4. Verify deployment
+
+Verified the container state, retrieved the public FQDN and checked the application through a web browser.
+
+The NGINX application loaded successfully.
+
+## Authentication Flow
+
+When ACI starts, it uses the configured User Assigned Managed Identity to authenticate with Azure Container Registry.
+
+ACR checks the identity's role assignments.
+
+If the identity has the required AcrPull permission, ACR allows the image to be downloaded.
+
+ACI then starts the container using the downloaded image.
+
+```text
+ACI
+ |
+ v
+User Assigned Managed Identity
+ |
+ v
+Microsoft Entra ID
+ |
+ v
+ACR authorization check
+ |
+ v
+AcrPull permission
+ |
+ v
+Image download
+ |
+ v
+Container starts
+```
+
+## Troubleshooting
+
+Some useful commands used during the lab:
+
+### Check ACI status
+
+```bash
+az container show \
+  --resource-group $RG \
+  --name aci-nginx-custom \
+  --query instanceView.state
+```
+
+### Check container logs
+
+```bash
+az container logs \
+  --resource-group $RG \
+  --name aci-nginx-custom
+```
+
+### Check container events
+
+```bash
+az container show \
+  --resource-group $RG \
+  --name aci-nginx-custom \
+  --query "containers[].instanceView.events" \
+  -o json
+```
+
+### Common issues
+
+| Issue | Possible cause |
+|---|---|
+| ImagePullFailure | ACR authentication or image retrieval issue |
+| Unauthorized | Missing or incorrect AcrPull permission |
+| Manifest unknown | Incorrect image repository or tag |
+| Container not running | Application startup or configuration issue |
+| Website not accessible | Port, public IP or application configuration issue |
 
 ## Cleanup
 
-I deleted the ACI after completing the lab to avoid unnecessary compute charges.
+Deleted the ACI after completing the lab to avoid unnecessary compute charges.
 
-The ACR and managed identity can be retained for further practice.
+```bash
+az container delete \
+  --resource-group $RG \
+  --name aci-nginx-custom \
+  --yes
+```
 
-## Key takeaway
+The ACR and managed identity can be retained for future practice.
 
-This lab helped me understand the complete workflow of building a custom container image, storing it in a private registry, configuring identity-based authentication, and running it in Azure.
+## Key Learnings
 
-It also helped me understand how managed identities and RBAC work together in a real Azure administration scenario.
+- Built a custom Docker image locally.
+- Understood Docker image tagging and pushing.
+- Created and worked with Azure Container Registry.
+- Deployed a private container image using ACI.
+- Used User Assigned Managed Identity for registry authentication.
+- Understood AcrPull and resource-level RBAC.
+- Verified container deployment through logs, events and a browser.
+
+## AZ-104 Relevance
+
+This lab covers concepts related to:
+
+- Azure Container Registry
+- Azure Container Instances
+- Managed Identities
+- Azure RBAC
+- Resource permissions
+- Container deployment and troubleshooting
+
+The main takeaway was understanding how Azure resources authenticate with each other without requiring hardcoded credentials.
